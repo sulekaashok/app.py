@@ -1,6 +1,17 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
+# ============================
+# Trial reference curve (SURMOUNT-style)
+# ============================
+
+def trial_reference_weight_loss(weeks):
+    """
+    Normalized trial-average % weight loss curve.
+    Reference only, not a target.
+    """
+    max_loss = 0.21  # conservative SURMOUNT-1 mean
+    return max_loss / (1 + np.exp(-0.1 * (weeks - 28)))
 
 # ============================
 # Trial-anchored prediction logic
@@ -24,6 +35,19 @@ def apply_comorbidity_adjustments(base_loss, diabetes, pcos, thyroid):
 
 def trial_time_curve(total_loss, weeks):
     return total_loss / (1 + np.exp(-0.1 * (weeks - 30)))
+    def patient_weight_loss_curve(dose, weeks, diabetes):
+    """
+    Patient-specific response using dose exposure.
+    Enables microdosing and trial comparison.
+    """
+    dose_effect = dose / 15  # normalize vs max dose
+    base_response = 0.21 * dose_effect
+
+    if diabetes:
+        base_response *= 0.65
+
+    return base_response / (1 + np.exp(-0.1 * (weeks - 30)))
+
 
 # ============================
 # Streamlit UI
@@ -54,16 +78,35 @@ adjusted_loss = apply_comorbidity_adjustments(
     base_loss, diabetes, pcos, thyroid
 )
 
-curve = trial_time_curve(adjusted_loss, weeks)
-weights = baseline_weight * (1 - curve)
+trial_curve = trial_reference_weight_loss(weeks)
+patient_curve = patient_weight_loss_curve(dose, weeks, diabetes)
+
+trial_weights = baseline_weight * (1 - trial_curve)
+patient_weights = baseline_weight * (1 - patient_curve)
+
+delta_vs_trial = patient_weights[-1] - trial_weights[-1]
+
 
 fig, ax = plt.subplots()
-ax.plot(weeks, weights)
+
+ax.plot(weeks, patient_weights, label="Patient trajectory", linewidth=2)
+ax.plot(weeks, trial_weights, linestyle="--", label="Lilly trial reference")
+
 ax.set_xlabel("Weeks on therapy")
 ax.set_ylabel("Weight (kg)")
-ax.set_title("Expected Weight Trajectory")
+ax.set_title("Patient vs Trial Reference Trajectory")
+ax.legend()
 
 st.pyplot(fig)
+st.subheader("Trial-relative performance")
+
+if delta_vs_trial < -1:
+    st.success("Patient is outperforming trial expectations at this dose")
+elif abs(delta_vs_trial) <= 1:
+    st.info("Patient is tracking close to trial expectations")
+else:
+    st.warning("Patient is lagging behind trial expectations")
+
 
 st.subheader("Estimated outcomes at 72 weeks")
 st.write(f"Mean expected weight loss: {round(adjusted_loss*100,1)}%")
