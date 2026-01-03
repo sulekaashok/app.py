@@ -68,25 +68,43 @@ age = st.number_input("Age", 18, 80, 40)
 baseline_weight = st.number_input(
     "Baseline weight (kg)", 40.0, 250.0, 100.0
 )
+st.subheader("Dosing strategy")
 
-st.subheader("Microdosing parameters")
-
-dose_per_injection = st.selectbox(
-    "Dose per injection (mg)",
-    [1.0, 1.25, 1.5, 2.0]
+dosing_strategy = st.radio(
+    "Select dosing approach",
+    ["Microdosing (adaptive)", "Lilly reference dosing"]
 )
 
-injections_per_week = st.selectbox(
-    "Injections per week",
-    [1, 2, 3, 4],
-    index=3
-)
+if dosing_strategy == "Microdosing (adaptive)":
+    st.subheader("Microdosing parameters")
 
-weekly_exposure = dose_per_injection * injections_per_week
-st.caption(
-    f"Total weekly exposure: {weekly_exposure} mg "
-    f"({dose_per_injection} mg × {injections_per_week} injections/week)"
-)
+    dose_per_injection = st.selectbox(
+        "Dose per injection (mg)",
+        [1.0, 1.25, 1.5, 2.0]
+    )
+
+    injections_per_week = st.selectbox(
+        "Injections per week",
+        [1, 2, 3, 4],
+        index=3
+    )
+
+    weekly_exposure = dose_per_injection * injections_per_week
+
+    st.caption(
+        f"Total weekly exposure: {weekly_exposure} mg "
+        f"({dose_per_injection} mg × {injections_per_week}/week)"
+    )
+
+else:
+    st.subheader("Lilly reference dosing")
+
+    weekly_exposure = st.selectbox(
+        "Weekly dose (mg)",
+        [2.5, 5.0, 10.0, 15.0]
+    )
+
+    st.caption("Standard once-weekly dosing based on Lilly trials")
 current_week = st.slider(
     "Current week on therapy",
     min_value=1,
@@ -118,12 +136,42 @@ delta_vs_trial = (
 
 fig, ax = plt.subplots()
 
-ax.plot(weeks, patient_weights, label="Patient trajectory", linewidth=2)
-ax.plot(weeks, trial_weights, linestyle="--", label="Lilly trial reference")
+# Observed patient trajectory (up to current week)
+ax.plot(
+    weeks[:current_week],
+    patient_weights[:current_week],
+    label="Observed patient trajectory",
+    linewidth=2
+)
+
+# Projected patient trajectory (after current week)
+ax.plot(
+    weeks[current_week-1:],
+    patient_weights[current_week-1:],
+    linestyle=":",
+    label="Projected patient trajectory"
+)
+
+# Lilly trial reference (benchmark)
+ax.plot(
+    weeks,
+    trial_weights,
+    linestyle="--",
+    label="Lilly trial reference"
+)
+
+# Mark current week
+ax.axvline(
+    current_week,
+    linestyle=":",
+    color="grey",
+    alpha=0.6,
+    label="Current week"
+)
 
 ax.set_xlabel("Weeks on therapy")
 ax.set_ylabel("Weight (kg)")
-ax.set_title("Patient vs Trial Reference Trajectory")
+ax.set_title("Observed vs Projected Weight Trajectory")
 ax.legend()
 
 st.pyplot(fig)
