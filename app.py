@@ -38,12 +38,14 @@ def trial_time_curve(total_loss, weeks):
     return total_loss / (1 + np.exp(-0.1 * (weeks - 30)))
 
 
-def patient_weight_loss_curve(dose, weeks, diabetes):
+def patient_weight_loss_curve(weekly_exposure, weeks, diabetes):
     """
-    Patient-specific response using dose exposure.
-    Enables microdosing and trial comparison.
+    Patient-specific response using total weekly drug exposure.
+    Supports microdosing.
     """
-    dose_effect = dose / 15  # normalize vs max dose
+    max_weekly_dose = 15.0
+    dose_effect = weekly_exposure / max_weekly_dose
+
     base_response = 0.21 * dose_effect
 
     if diabetes:
@@ -67,7 +69,30 @@ baseline_weight = st.number_input(
     "Baseline weight (kg)", 40.0, 250.0, 100.0
 )
 
-dose = st.selectbox("Weekly dose (mg)", [5, 10, 15])
+st.subheader("Microdosing parameters")
+
+dose_per_injection = st.selectbox(
+    "Dose per injection (mg)",
+    [1.0, 1.25, 1.5, 2.0]
+)
+
+injections_per_week = st.selectbox(
+    "Injections per week",
+    [1, 2, 3, 4],
+    index=3
+)
+
+weekly_exposure = dose_per_injection * injections_per_week
+st.caption(
+    f"Total weekly exposure: {weekly_exposure} mg "
+    f"({dose_per_injection} mg × {injections_per_week} injections/week)"
+)
+current_week = st.slider(
+    "Current week on therapy",
+    min_value=1,
+    max_value=72,
+    value=12
+)
 
 st.subheader("Comorbidities")
 diabetes = st.checkbox("Type 2 Diabetes")
@@ -76,18 +101,19 @@ thyroid = st.checkbox("Hypothyroidism")
 
 weeks = np.arange(0, 73)
 
-base_loss = base_trial_weight_loss(dose)
-adjusted_loss = apply_comorbidity_adjustments(
-    base_loss, diabetes, pcos, thyroid
-)
 
 trial_curve = trial_reference_weight_loss(weeks)
-patient_curve = patient_weight_loss_curve(dose, weeks, diabetes)
+patient_curve = patient_weight_loss_curve(
+    weekly_exposure, weeks, diabetes
+)
 
 trial_weights = baseline_weight * (1 - trial_curve)
 patient_weights = baseline_weight * (1 - patient_curve)
 
-delta_vs_trial = patient_weights[-1] - trial_weights[-1]
+delta_vs_trial = (
+    patient_weights[current_week - 1]
+    - trial_weights[current_week - 1]
+)
 
 
 fig, ax = plt.subplots()
@@ -111,9 +137,17 @@ else:
     st.warning("Patient is lagging behind trial expectations")
 
 
-st.subheader("Estimated outcomes at 72 weeks")
-st.write(f"Mean expected weight loss: {round(adjusted_loss*100,1)}%")
-st.write(f"Estimated final weight: {round(patient_weights[-1],1)} kg")
+st.subheader(f"Estimated outcomes at week {current_week}")
+
+st.write(
+    f"Estimated weight at week {current_week}: "
+    f"{round(patient_weights[current_week - 1],1)} kg"
+)
+
+st.caption(
+    f"Projected final weight at week 72: "
+    f"{round(patient_weights[-1],1)} kg"
+)
 
 
 st.warning(
