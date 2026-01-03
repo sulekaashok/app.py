@@ -35,7 +35,9 @@ def apply_comorbidity_adjustments(base_loss, diabetes, pcos, thyroid):
 
 def trial_time_curve(total_loss, weeks):
     return total_loss / (1 + np.exp(-0.1 * (weeks - 30)))
-    def patient_weight_loss_curve(dose, weeks, diabetes):
+
+
+def patient_weight_loss_curve(dose, weeks, diabetes):
     """
     Patient-specific response using dose exposure.
     Enables microdosing and trial comparison.
@@ -110,7 +112,8 @@ else:
 
 st.subheader("Estimated outcomes at 72 weeks")
 st.write(f"Mean expected weight loss: {round(adjusted_loss*100,1)}%")
-st.write(f"Estimated final weight: {round(weights[-1],1)} kg")
+st.write(f"Estimated final weight: {round(patient_weights[-1],1)} kg")
+
 
 st.warning(
     "This tool provides trial-anchored simulations for clinical visualization only. "
